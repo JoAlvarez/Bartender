@@ -12,7 +12,9 @@ AMT = ['span class="amount"','amount">', '<']
 NAME = ['class="fn recipe_title"', '>', '<']
 DIRECTIONS = ['div class="RecipeDirections instructions', '">','<']
 DRINKS = ['<table cellspacing="1" cellpadding="0" border="0" width="98%"><tr><td width="50%"><div class="l1a">','<a href="','"']
-
+#
+# Need to change this function so that it returns either the position in page after info is found, or all of page after info found
+#
 def getInfo(page, searchInfo): #get specific data from a drink page
 	info = ''
 	startLink = page.find(searchInfo[0])
@@ -42,7 +44,6 @@ def getDrink(page): #get needed info from drink page
 	drink = []
 	drink.append(getInfo(page, NAME))
 	drink.append(getInfo(page, GLASS))
-	drink.append(getInfo(page, DESCRIP))
 	drink.append(getIngr(page, AMT, INGER))
 	drink.append(getInfo(page, DIRECTIONS))
 	return drink
@@ -65,29 +66,50 @@ def getDrinkPage(page): #get drinks from a page e.g. cat/y/z
 			tableStart = endLink
 	return drink		
 
-def getPages(page, pageNum, drinks): #travel from cat/X/n where n  = [0,...,N]
+def getPages(page, catNum): #travel from cat/X/n where n  = [0,...,N]
 	#find max pages to cat
+	drinks = []
 	maxPageFinder = getInfo(page, ['<div class="fl4"', '>','<'])
 	maxPageDash = maxPageFinder.find('/')
-	maxPage = maxPageFinder[maxPageDash+1:]
+	maxPage = int(float( maxPageFinder[maxPageDash+1:] ) )
+	pageNum = 0
 	#iterate through each page finding drink info
-	if pageNum > int(float(maxPage)):
-		return
-	else:
-		drinks.append(getDrinkPage(page))
-	    #get new page
-		
-		getPages(newpage, pageNum+1, drinks)
+	while True:
+		if pageNum >= maxPage:
+			break
+		else:
+			print "...working on page", pageNum +1
+			drinkLink = urllib2.urlopen(ROOT + '/cat/' + str(catNum)+'/'+str(pageNum + 1))
+			drinkPage = drinkLink.read()
+			drinks.append( getDrinkPage(drinkPage) )
+			pageNum = pageNum + 1
+	return drinks
 
 def getDrinks(page): #travel through each cat, cat/n/ where n = [0,...,N]
 	drink = []
+	maxCat = 8
+	currentCat = 0
+	while True:
+		if currentCat >= maxCat:
+			break
+		elif currentCat == 4:
+			currentCat = currentCat + 1
+		else:
+			print "working on cat: ", currentCat+1
+			drinkLink = urllib2.urlopen(ROOT+ '/cat/' + str(currentCat + 1))
+			drinkPage = drinkLink.read()
+			drink.append( getPages(drinkPage, currentCat + 1) )
+			currentCat = currentCat + 1
+	return drink
 	
 def printInfo(mylist):
 	file = open(OUTPUT, 'w')
-	for item in mylist:
-		 file.write("%s\n" % item)
+	for itema in mylist:
+		for itemb in itema:
+			for itemc in itemb:
+				file.write("%s\n" % itemc)
 	
-c = urllib2.urlopen('http://www.drinksmixer.com/cat/1/2/')
+c = urllib2.urlopen(ROOT)
 contents = c.read()
-thisList = getPages(contents)
-#printInfo( thisList)
+thisList = getDrinks(contents)
+printInfo( thisList)
